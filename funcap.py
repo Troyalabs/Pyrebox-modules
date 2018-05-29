@@ -191,7 +191,6 @@ def smart_format(raw_data, maxlen, print_dots=True):
 	@param print_dots: (Optional, def:True) Controls suppression of dot in place of non-printable
 	@rtype:  String
 	@return: String of data discovered behind dereference.
-
 	Original source code: https://github.com/deresz/funcap/blob/master/funcap.py
 	'''
 
