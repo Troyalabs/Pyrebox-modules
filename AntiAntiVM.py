@@ -11,6 +11,7 @@ from api import CallbackManager
 import api
 import functools
 from api import BP
+import random
 import pefile
 
 #TEMPORAL
@@ -21,6 +22,30 @@ process_is_created = 0
 target_pgd = 0
 target_name = ""
 target_pid = 0
+
+rdtsc_val_hi=0
+rdtsc_val_lo=0
+
+def rdtsc_call(cpu_index,cpu,pc,next_pc):
+	global pyrebox_print
+	global target_pgd
+	global rdtsc_val_lo
+	global rdtsc_val_hi
+
+	
+	if api.is_kernel_running(cpu_index) == False:
+		pgd = api.get_running_process(cpu_index)
+		if pgd == target_pgd and pc < 0x500000:
+			if rdtsc_val_lo == 0:
+				pyrebox_print("[*] first rdtsc call %x" % pc)	
+				rdtsc_val_lo = cpu.EAX
+				rdtsc_val_hi = cpu.EDX
+			else:
+				pyrebox_print("[*] new rdtsc check! %x" % pc)	
+				rdtsc_val_lo = rdtsc_val_lo + 500  # this just works for pafish ~cos it has a sleep(500), need to find a more general aproach
+				api.w_r(0,"EAX",rdtsc_val_lo)
+				api.w_r(0,"EDX",rdtsc_val_hi)
+
 
 def opcodes(cpu_index,cpu,pc,next_pc):
 	global pyrebox_print
@@ -92,6 +117,7 @@ def context_change(pgd_target, target_mod_name, old_pgd, new_pgd):
 			pyrebox_print("The entry point for %s is %x\n" % (target_mod_name, ep))
 			cm.rm_callback("context_change")
 			cm.add_callback(CallbackManager.OPCODE_RANGE_CB, opcodes, name="opcode2_%x" % (target_pid), start_opcode=0x0fa2, end_opcode=0x0fa2)
+			cm.add_callback(CallbackManager.OPCODE_RANGE_CB, rdtsc_call, name="opcode2_%x" % (target_pid), start_opcode=0x0f31, end_opcode=0x0f31)
 
 			############### TODO (hooking VM detection Windows APIs)
 			#cm.add_callback(CallbackManager.INSN_BEGIN_CB,ep_hit,addr=ep,pgd=target_pgd)
