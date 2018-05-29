@@ -16,6 +16,7 @@ import pefile
 
 #TEMPORAL
 from ipython_shell import start_shell
+Sample_to_upload = "/path/to/the/sample.exe"
 
 
 process_is_created = 0
@@ -142,7 +143,7 @@ def initialize_callbacks(module_hdl, printer):
 	pyrebox_print = printer
 	cm = CallbackManager(module_hdl)
 
-	guest_agent.copy_file("/home/marc/sdcard/zoo/gen/sample.exe","C:\\ProgramData\\malo.exe")
+	guest_agent.copy_file(Sample_to_upload,"C:\\ProgramData\\malo.exe")
 	cm.add_callback(CallbackManager.CREATEPROC_CB, new_proc, name="vmi_new_proc")
 	guest_agent.execute_file("C:\\ProgramData\\malo.exe")
 
