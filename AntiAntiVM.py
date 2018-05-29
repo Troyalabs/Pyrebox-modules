@@ -10,24 +10,21 @@ from __future__ import print_function
 from api import CallbackManager
 import api
 import functools
-from api import BP
-import random
 import pefile
 
 #TEMPORAL
-from ipython_shell import start_shell
-Sample_to_upload = "/path/to/the/sample.exe"
-
+from ipython_shell import start_shell          # this should not be needed 
+sample_to_upload = "/path/to/the/sample.exe"   # Add a callback for the CPUID opcode
+name_of_the_target_process = "malo.exe"        # Add a callback for the CPUID opcode
 
 process_is_created = 0
 target_pgd = 0
 target_name = ""
-target_pid = 0
 
 rdtsc_val_hi=0
 rdtsc_val_lo=0
 
-def rdtsc_call(cpu_index,cpu,pc,next_pc):
+def rdtsc_opcode_call(cpu_index,cpu,pc,next_pc):
 	global pyrebox_print
 	global target_pgd
 	global rdtsc_val_lo
@@ -48,7 +45,7 @@ def rdtsc_call(cpu_index,cpu,pc,next_pc):
 				api.w_r(0,"EDX",rdtsc_val_hi)
 
 
-def opcodes(cpu_index,cpu,pc,next_pc):
+def cpuid_opcode_call(cpu_index,cpu,pc,next_pc):
 	global pyrebox_print
 	global target_pgd
 
@@ -78,38 +75,27 @@ def opcodes(cpu_index,cpu,pc,next_pc):
 				#start_shell()
 
 
-def new_proc(pid, pgd, name):
+def new_process_created(pid, pgd, name):
 	global process_is_created
 	global cm
-	
 	global target_pgd
-	global target_pid
-	global target_name
-
+	global name_of_the_target_process
 	global pyrebox_print
-	if name == "malo.exe":
+
+
+	if name == name_of_the_target_process:
 		target_pgd = pgd
-		target_name = name
-		target_pid = pid
 
 		process_is_created = 1
-		pyrebox_print("[*] Proc created")
+		pyrebox_print("[*] Process created")
 		api.start_monitoring_process(target_pgd)
 		cm.add_callback(CallbackManager.CONTEXTCHANGE_CB, functools.partial(context_change, pgd, name), name="context_change")
 		cm.rm_callback("vmi_new_proc")
 
 
 def context_change(pgd_target, target_mod_name, old_pgd, new_pgd):
-	'''Callback triggered for every context change
-		:param target_pgd: This parameter is inserted using functools.partial (see callback registration)
-		:param target_mod_name: This parameter is inserted using functools.partial (see callback registration)
-		:param old_pgd: This is the first parameter of the callback
-		:param new_pgd: This is the second parameter of the callback
-	'''
 	global cm
 	global target_pgd
-	global target_pid
-	global target_name
 
 
 	if target_pgd == new_pgd:
@@ -117,35 +103,11 @@ def context_change(pgd_target, target_mod_name, old_pgd, new_pgd):
 		if ep is not None:
 			pyrebox_print("The entry point for %s is %x\n" % (target_mod_name, ep))
 			cm.rm_callback("context_change")
-			cm.add_callback(CallbackManager.OPCODE_RANGE_CB, opcodes, name="opcode2_%x" % (target_pid), start_opcode=0x0fa2, end_opcode=0x0fa2)
-			cm.add_callback(CallbackManager.OPCODE_RANGE_CB, rdtsc_call, name="opcode2_%x" % (target_pid), start_opcode=0x0f31, end_opcode=0x0f31)
+			# Add a callback for the CPUID opcode
+			cm.add_callback(CallbackManager.OPCODE_RANGE_CB, cpuid_opcode_call, name="opcode1_cpuid", start_opcode=0x0fa2, end_opcode=0x0fa2)
+			# Add a callback for the RDTSC opcode
+			cm.add_callback(CallbackManager.OPCODE_RANGE_CB, rdtsc_opcode_call, name="opcode2_rdtsc", start_opcode=0x0f31, end_opcode=0x0f31)
 
-			############### TODO (hooking VM detection Windows APIs)
-			#cm.add_callback(CallbackManager.INSN_BEGIN_CB,ep_hit,addr=ep,pgd=target_pgd)
-
-def update_symbols(cpu_index,cpu):
-
-	global cm
-	global target_pgd
-
-	pgd = api.get_running_process(cpu_index)
-	start_shell()
-	if pgd == target_pgd:
-		api.get_symbol_list()
-		cm.rm_callback("update_symbols")
-
-
-def initialize_callbacks(module_hdl, printer):
-	global cm
-	global pyrebox_print
-	from plugins.guest_agent import guest_agent
-
-	pyrebox_print = printer
-	cm = CallbackManager(module_hdl)
-
-	guest_agent.copy_file(Sample_to_upload,"C:\\ProgramData\\malo.exe")
-	cm.add_callback(CallbackManager.CREATEPROC_CB, new_proc, name="vmi_new_proc")
-	guest_agent.execute_file("C:\\ProgramData\\malo.exe")
 
 
 def find_ep(pgd, proc_name):
@@ -169,25 +131,29 @@ def find_ep(pgd, proc_name):
 				pyrebox_print("Unable to run pefile on loaded module %s" % name)
 
 
+def clean():
+	'''
+	Clean up everything. 
+	'''
+	global cm
+	global pyrebox_print
+	pyrebox_print("[*]    Cleaning module")
+	cm.clean()
+	pyrebox_print("[*]    Cleaned module")
 
 
+def initialize_callbacks(module_hdl, printer):
+	global cm
+	global pyrebox_print
+	from plugins.guest_agent import guest_agent
 
+	pyrebox_print = printer
+	cm = CallbackManager(module_hdl)
 
-############### TODO (hooking VM detection Windows APIs)
-def ep_hit(cpu_index,cpu):
-	global target_pgd
-	api.start_monitoring_process(target_pgd)
-	simbols = api.get_symbol_list(target_pgd)			
-	for sim in simbols:
-		if sim["name"] == "GetDiskFreeSpaceExW" or sim["name"] == "GetDiskFreeSpaceExA":
-			pyrebox_print("found! %s" % sim["addr"])
-			cm.add_callback(CallbackManager.INSN_BEGIN_CB,GetFreeSpaceCalled,addr=sim["addr"],pgd=target_pgd)
-	start_shell()
+	# Push the sample from de host to de guest
+	guest_agent.copy_file(Sample_to_upload,"C:\\ProgramData\\malo.exe")
+	# Create a Callback for every new process create to catch de sample when executed
+	cm.add_callback(CallbackManager.CREATEPROC_CB, new_process_created, name="vmi_new_proc")
+	# Run the sample uploaded to the VM
+	guest_agent.execute_file("C:\\ProgramData\\malo.exe")
 
-
-def GetFreeSpaceCalled(addr,pgd):
-	start_shell()
-	cm.add_callback(CallbackManager.INSN_BEGIN_CB,my_function,addr=addr,pgd=pgd)
-
-def my_function(cpu_index,cpu):
-	start_shell()
