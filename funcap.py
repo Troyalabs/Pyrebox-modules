@@ -73,7 +73,7 @@ if __name__ == "__main__":
 	print("[*] Loading python module %s" % (__file__))
 
 
-# the following few functions are adopted from PaiMei by Pedram Amini
+# The following few functions are adopted from PaiMei by Pedram Amini
 # they are here to format and present data in a nice way
 # Source: funcap script to IDA Pro (funtions to print format)
 
