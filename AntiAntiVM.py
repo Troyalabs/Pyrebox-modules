@@ -13,14 +13,14 @@ import functools
 import pefile
 
 #TEMPORAL
-from ipython_shell import start_shell          # this should not be needed 
-sample_to_upload = "/path/to/the/sample.exe"   # Add a callback for the CPUID opcode
-name_of_the_target_process = "malo.exe"        # Add a callback for the CPUID opcode
+from ipython_shell import start_shell   # this will not be needed   			 
+
+sample_to_upload = "/path/to/the/local/sample.exe" 
+upload_path = "C:\\ProgramData\\"
+sample_name = "malo.exe"        
 
 process_is_created = 0
 target_pgd = 0
-target_name = ""
-
 rdtsc_val_hi=0
 rdtsc_val_lo=0
 
@@ -79,11 +79,11 @@ def new_process_created(pid, pgd, name):
 	global process_is_created
 	global cm
 	global target_pgd
-	global name_of_the_target_process
+	global sample_name
 	global pyrebox_print
 
 
-	if name == name_of_the_target_process:
+	if name == sample_name:
 		target_pgd = pgd
 
 		process_is_created = 1
@@ -145,15 +145,19 @@ def clean():
 def initialize_callbacks(module_hdl, printer):
 	global cm
 	global pyrebox_print
+	global sample_to_upload
+	global upload_path
+	global sample_name
+
 	from plugins.guest_agent import guest_agent
 
 	pyrebox_print = printer
 	cm = CallbackManager(module_hdl)
 
 	# Push the sample from de host to de guest
-	guest_agent.copy_file(Sample_to_upload,"C:\\ProgramData\\"+name_of_the_target_process)
+	guest_agent.copy_file(sample_to_upload,upload_path+sample_name)
 	# Create a Callback for every new process create to catch de sample when executed
 	cm.add_callback(CallbackManager.CREATEPROC_CB, new_process_created, name="vmi_new_proc")
 	# Run the sample uploaded to the VM
-	guest_agent.execute_file("C:\\ProgramData\\"+name_of_the_target_process)
+	guest_agent.execute_file(upload_path+sample_name)
 
