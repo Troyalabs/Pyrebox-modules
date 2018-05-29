@@ -151,9 +151,9 @@ def initialize_callbacks(module_hdl, printer):
 	cm = CallbackManager(module_hdl)
 
 	# Push the sample from de host to de guest
-	guest_agent.copy_file(Sample_to_upload,"C:\\ProgramData\\malo.exe")
+	guest_agent.copy_file(Sample_to_upload,"C:\\ProgramData\\"+name_of_the_target_process)
 	# Create a Callback for every new process create to catch de sample when executed
 	cm.add_callback(CallbackManager.CREATEPROC_CB, new_process_created, name="vmi_new_proc")
 	# Run the sample uploaded to the VM
-	guest_agent.execute_file("C:\\ProgramData\\malo.exe")
+	guest_agent.execute_file("C:\\ProgramData\\"+name_of_the_target_process)
 
