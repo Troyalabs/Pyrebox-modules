@@ -1,9 +1,10 @@
 # Pyrebox-modules
 This repository contains differents modules to Pyrebox.
 
-If you don't know Pyrebox, visit:
+Pyrebox references:
 
-https://github.com/Cisco-Talos/pyrebox
-https://pyrebox.readthedocs.io/en/latest/
+[*] https://github.com/Cisco-Talos/pyrebox
+
+[*] https://pyrebox.readthedocs.io/en/latest/
 
 
